@@ -1,0 +1,224 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  background-color: #0a0f0d;
+}
+
+body {
+  margin: 0;
+  font-family: "Cairo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+
+/* الأرقام: خط إنشائي بعرض ثابت لشاشات القياسات */
+.num {
+  font-family: "Barlow Semi Condensed", "Cairo", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0f0d;
+}
+::-webkit-scrollbar-thumb {
+  background: #24332d;
+  border-radius: 999px;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+@keyframes scan {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@keyframes logo-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.login-motion-bg {
+  background:
+    radial-gradient(ellipse at 72% 8%, rgba(49, 196, 141, 0.16), transparent 31%),
+    radial-gradient(ellipse at 20% 82%, rgba(242, 169, 0, 0.07), transparent 30%),
+    linear-gradient(145deg, #050908 0%, #0b1713 52%, #070b0a 100%);
+  overflow: hidden;
+}
+
+.login-grid {
+  position: absolute;
+  inset: -30%;
+  opacity: 0.16;
+  background-image:
+    linear-gradient(rgba(49, 196, 141, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(49, 196, 141, 0.14) 1px, transparent 1px);
+  background-size: 54px 54px;
+  transform: perspective(500px) rotateX(58deg) translateY(32%);
+  transform-origin: center bottom;
+  animation: login-grid 14s linear infinite;
+}
+
+.login-route {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.95;
+}
+
+.login-route-dash {
+  animation: login-route-dash 2.8s linear infinite;
+  filter: drop-shadow(0 0 7px rgba(49, 196, 141, 0.75));
+}
+
+.login-route-point {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: login-point 2s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+.login-particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: #31c48d;
+  box-shadow: 0 0 12px 3px rgba(49, 196, 141, 0.45);
+  opacity: 0.55;
+  animation: login-particle 10s ease-in-out infinite;
+}
+
+.login-particle-one { left: 14%; top: 18%; }
+.login-particle-two {
+  left: 82%;
+  top: 28%;
+  animation-delay: -3s;
+  background: #f2a900;
+  box-shadow: 0 0 12px 3px rgba(242, 169, 0, 0.35);
+}
+.login-particle-three { left: 34%; top: 76%; animation-delay: -6s; }
+.login-particle-four {
+  left: 72%;
+  top: 68%;
+  animation-delay: -8s;
+  background: #a7ff6b;
+}
+
+.login-road {
+  position: absolute;
+  width: 90%;
+  height: 1px;
+  left: -20%;
+  background: linear-gradient(90deg, transparent, rgba(242, 169, 0, 0.25), transparent);
+  animation: login-road 8s linear infinite;
+}
+
+.login-road-one { top: 24%; transform: rotate(-18deg); }
+.login-road-two {
+  top: 68%;
+  transform: rotate(-18deg);
+  animation-delay: -4s;
+  animation-duration: 10s;
+  opacity: 0.65;
+}
+
+.login-glow {
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  border-radius: 999px;
+  filter: blur(70px);
+  opacity: 0.08;
+  animation: login-float 12s ease-in-out infinite alternate;
+}
+
+.login-glow-one { background: #31c48d; left: -80px; top: 18%; }
+.login-glow-two {
+  background: #f2a900;
+  right: -100px;
+  bottom: 10%;
+  animation-delay: -6s;
+}
+
+.map-offline::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 400;
+  pointer-events: none;
+  opacity: 0.55;
+  background:
+    linear-gradient(32deg, transparent 49.4%, rgba(49,196,141,.18) 49.8%, rgba(49,196,141,.18) 50.2%, transparent 50.6%),
+    repeating-linear-gradient(90deg, transparent 0 58px, rgba(143,163,155,.09) 59px 60px),
+    repeating-linear-gradient(0deg, transparent 0 58px, rgba(143,163,155,.09) 59px 60px);
+}
+
+@keyframes login-grid {
+  from { background-position: 0 0; }
+  to { background-position: 54px 54px; }
+}
+
+@keyframes login-route-dash {
+  to { stroke-dashoffset: -52; }
+}
+
+@keyframes login-point {
+  50% { opacity: 0.45; transform: scale(1.9); }
+}
+
+@keyframes login-particle {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(30px, -55px, 0); }
+}
+
+@keyframes login-road {
+  from { transform: translateX(-35%) rotate(-18deg); }
+  to { transform: translateX(75%) rotate(-18deg); }
+}
+
+@keyframes login-float {
+  from { transform: translate3d(-20px, 10px, 0) scale(0.9); }
+  to { transform: translate3d(30px, -20px, 0) scale(1.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
