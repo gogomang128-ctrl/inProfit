@@ -19,6 +19,7 @@ interface Adapter {
 
 const CAIRO: Pt = [30.0444, 31.2357];
 const EGYPT_OVERVIEW: Pt = [26.820553, 30.802498];
+const GOOGLE_MAPS_API_KEY = "AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao";
 
 /* ───────────────────── Leaflet (افتراضي — بلا مفتاح) ───────────────────── */
 function createLeafletAdapter(el: HTMLElement): Adapter {
@@ -102,7 +103,7 @@ function loadGoogleScript(key: string): Promise<void> {
       return;
     }
     const s = document.createElement("script");
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&language=ar&region=EG&v=weekly`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=marker,places,geometry&language=ar&region=EG&v=weekly`;
     s.async = true;
     s.onload = () => resolve();
     s.onerror = () => {
@@ -247,7 +248,9 @@ export default function MapTab({ vehicle, l100, fuelPrice, active, notify }: Pro
   const [liters, setLiters] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [limit, setLimit] = useState<number>(() => loadSetting("speedLimit", 80));
-  const [gkey, setGkey] = useState<string>(() => loadSetting("gmapsKey", ""));
+  const [gkey, setGkey] = useState<string>(() =>
+    loadSetting("gmapsKey", GOOGLE_MAPS_API_KEY),
+  );
   const [showSettings, setShowSettings] = useState(false);
   const [engineName, setEngineName] = useState<"leaflet" | "google">("leaflet");
   const [mapError, setMapError] = useState<string | null>(null);
@@ -268,7 +271,8 @@ export default function MapTab({ vehicle, l100, fuelPrice, active, notify }: Pro
     adapterRef.current?.destroy();
     adapterRef.current = null;
     setMapError(null);
-    const key = loadSetting<string>("gmapsKey", "");
+    const savedKey = loadSetting<string>("gmapsKey", GOOGLE_MAPS_API_KEY);
+    const key = savedKey || GOOGLE_MAPS_API_KEY;
     if (key) {
       try {
         const a = await createGoogleAdapter(el, key);
@@ -835,13 +839,13 @@ export default function MapTab({ vehicle, l100, fuelPrice, active, notify }: Pro
               </button>
               <button
                 onClick={() => {
-                  setGkey("");
-                  saveSetting("gmapsKey", "");
+                  setGkey(GOOGLE_MAPS_API_KEY);
+                  saveSetting("gmapsKey", GOOGLE_MAPS_API_KEY);
                   void buildAdapter();
                 }}
                 className="rounded-lg border border-[#1E2B26] py-2 text-[11px] font-black text-[#8FA39B] active:scale-95"
               >
-                استخدام الخريطة الأساسية
+                استخدام المفتاح الرسمي
               </button>
             </div>
             <p className="text-[10px] leading-relaxed text-[#6A7A73]">
