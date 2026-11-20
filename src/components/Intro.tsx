@@ -78,19 +78,17 @@ export default function Intro({ existing, onLogin }: IntroProps) {
     setError(null);
     setBusy(true);
     beep("info");
-    window.setTimeout(() => {
-      onLogin({
-        name: n,
-        phone: normalizePhone(phone),
-        vehicleId: existing?.vehicleId ?? "vigorey_vlr_200",
-        createdAt: existing?.createdAt ?? Date.now(),
-        lastLogin: Date.now(),
-      });
-    }, 550);
+    onLogin({
+      name: n,
+      phone: normalizePhone(phone),
+      vehicleId: existing?.vehicleId ?? "vigorey_vlr_200",
+      createdAt: existing?.createdAt ?? Date.now(),
+      lastLogin: Date.now(),
+    });
   };
 
   return (
-    <div className="relative min-h-[100dvh] w-full overflow-hidden bg-[#070B0A]">
+    <div className="relative min-h-[100dvh] w-full overflow-x-hidden overflow-y-auto bg-[#070B0A]">
       <div className="login-motion-bg absolute inset-0 z-0" aria-hidden="true">
         <div className="login-grid" />
         <svg className="login-route" viewBox="0 0 600 900" fill="none" preserveAspectRatio="xMidYMid slice">
@@ -197,6 +195,8 @@ export default function Intro({ existing, onLogin }: IntroProps) {
                 </span>
                 <input
                   ref={nameRef}
+                  type="text"
+                  name="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="مثال: محمود عبد الله"
@@ -210,9 +210,19 @@ export default function Intro({ existing, onLogin }: IntroProps) {
                   رقم التلفون (مصر)
                 </span>
                 <input
+                  type="tel"
+                  name="phone"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) =>
+                    setPhone(
+                      e.target.value
+                        .replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+                        .replace(/[^\d+]/g, ""),
+                    )
+                  }
                   inputMode="tel"
+                  pattern="[0-9+٠-٩]*"
+                  maxLength={14}
                   dir="ltr"
                   placeholder="01012345678"
                   autoComplete="tel"
