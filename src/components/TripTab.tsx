@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { Vehicle } from "@/data/vehicles";
 import { getVehicle, vehicles } from "@/data/vehicles";
 import type { TripResult } from "@/lib/calc";
@@ -17,6 +18,68 @@ interface Props {
   trip: TripState;
   setTrip: (t: TripState) => void;
   onVehicleChange: (v: Vehicle) => void;
+}
+
+interface NumberFieldProps {
+  label: string;
+  value: number;
+  onChange: (n: number) => void;
+  unit: string;
+  step?: number;
+  accent?: boolean;
+}
+
+function NumberField({ label, value, onChange, unit, step = 0.5, accent = false }: NumberFieldProps) {
+  const [draft, setDraft] = useState(value === 0 ? "" : String(value));
+
+  useEffect(() => {
+    setDraft(value === 0 ? "" : String(value));
+  }, [value]);
+
+  const updateDraft = (raw: string) => {
+    const normalized = raw
+      .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+      .replace(",", ".")
+      .replace(/[^\d.]/g, "");
+    setDraft(normalized);
+    if (normalized === "" || normalized === ".") {
+      onChange(0);
+      return;
+    }
+    const parsed = Number(normalized);
+    if (Number.isFinite(parsed) && parsed >= 0) onChange(parsed);
+  };
+
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-[11px] font-bold text-[#8FA39B]">{label}</span>
+      <span className="relative block">
+        <input
+          type="text"
+          inputMode="decimal"
+          value={draft}
+          step={step}
+          onChange={(e) => updateDraft(e.target.value)}
+          onBlur={() => {
+            if (draft === "" || draft === ".") {
+              setDraft("");
+              onChange(0);
+              return;
+            }
+            const parsed = Number(draft);
+            if (Number.isFinite(parsed)) setDraft(String(parsed));
+          }}
+          className={`num w-full rounded-xl border border-[#1E2B26] bg-[#070B0A] py-2.5 pl-3 pr-12 text-left text-lg font-extrabold outline-none transition focus:border-[#F2A900] ${
+            accent ? "text-[#F2A900]" : "text-white"
+          }`}
+          dir="ltr"
+        />
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] font-bold text-[#6A7A73]">
+          {unit}
+        </span>
+      </span>
+    </label>
+  );
 }
 
 const VERDICT_STYLE: Record<TripResult["verdict"], { title: string; ring: string; text: string; bg: string }> = {
@@ -45,36 +108,6 @@ export default function TripTab({ vehicle, l100, fuelPrice, result, trip, setTri
   const isMoto = vehicle.type === "motorcycle";
 
   const upd = (patch: Partial<TripState>) => setTrip({ ...trip, ...patch });
-
-  const numField = (
-    label: string,
-    value: number,
-    onChange: (n: number) => void,
-    unit: string,
-    step = 0.5,
-    accent = false,
-  ) => (
-    <label className="block">
-      <span className="mb-1.5 block text-[11px] font-bold text-[#8FA39B]">{label}</span>
-      <span className="relative block">
-        <input
-          type="number"
-          inputMode="decimal"
-          value={Number.isFinite(value) ? value : ""}
-          step={step}
-          min={0}
-          onChange={(e) => onChange(Math.max(0, parseFloat(e.target.value) || 0))}
-          className={`num w-full rounded-xl border border-[#1E2B26] bg-[#070B0A] py-2.5 pl-3 pr-12 text-left text-lg font-extrabold outline-none transition focus:border-[#F2A900] ${
-            accent ? "text-[#F2A900]" : "text-white"
-          }`}
-          dir="ltr"
-        />
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] font-bold text-[#6A7A73]">
-          {unit}
-        </span>
-      </span>
-    </label>
-  );
 
   return (
     <div className="space-y-4">
@@ -119,9 +152,9 @@ export default function TripTab({ vehicle, l100, fuelPrice, result, trip, setTri
           بيانات الرحلة المعروضة
         </h2>
         <div className="grid grid-cols-2 gap-3">
-          {numField("مسافة الرحلة", trip.tripKm, (n) => upd({ tripKm: n }), "كم")}
-          {numField("سعر الرحلة المطلوب", trip.fare, (n) => upd({ fare: n }), "ج.م", 1, true)}
-          {numField("مسافة الوصول للعميل", trip.pickupKm, (n) => upd({ pickupKm: n }), "كم")}
+          <NumberField label="مسافة الرحلة" value={trip.tripKm} onChange={(n) => upd({ tripKm: n })} unit="كم" />
+          <NumberField label="سعر الرحلة المطلوب" value={trip.fare} onChange={(n) => upd({ fare: n })} unit="ج.م" step={1} accent />
+          <NumberField label="مسافة الوصول للعميل" value={trip.pickupKm} onChange={(n) => upd({ pickupKm: n })} unit="كم" />
           <label className="block">
             <span className="mb-1.5 block text-[11px] font-bold text-[#8FA39B]">
               إهلاك وصيانة

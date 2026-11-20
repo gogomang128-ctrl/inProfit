@@ -784,7 +784,13 @@ export default function MapTab({ vehicle, l100, fuelPrice, active, notify }: Pro
               step={5}
               value={limit}
               onChange={(e) => {
-                const v = Math.min(180, Math.max(30, parseInt(e.target.value, 10) || 80));
+                const raw = e.target.value.replace(/[٠-٩]/g, (digit) =>
+                  String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)),
+                );
+                if (raw === "") return;
+                const parsed = Number(raw);
+                if (!Number.isFinite(parsed)) return;
+                const v = Math.min(180, Math.max(30, parsed));
                 setLimit(v);
                 saveSetting("speedLimit", v);
               }}
