@@ -5,6 +5,9 @@ const config: CapacitorConfig = {
   appName: "inProfit",
   webDir: "dist",
   bundledWebRuntime: false,
+  android: {
+    useLegacyBridge: true,
+  },
 };
 
 export default config;

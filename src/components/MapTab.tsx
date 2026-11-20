@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { Capacitor, registerPlugin } from "@capacitor/core";
+import { Geolocation } from "@capacitor/geolocation";
+import { LocalNotifications } from "@capacitor/local-notifications";
+import type { BackgroundGeolocationPlugin } from "@capacitor-community/background-geolocation";
 import type { Vehicle } from "@/data/vehicles";
 import { speedFactor } from "@/lib/calc";
 import { beep, vibrate } from "@/lib/audio";
@@ -20,6 +24,8 @@ interface Adapter {
 const CAIRO: Pt = [30.0444, 31.2357];
 const EGYPT_OVERVIEW: Pt = [26.820553, 30.802498];
 const GOOGLE_MAPS_API_KEY = "AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao";
+const BackgroundGeolocation =
+  registerPlugin<BackgroundGeolocationPlugin>("BackgroundGeolocation");
 
 /* ───────────────────── Leaflet (افتراضي — بلا مفتاح) ───────────────────── */
 function createLeafletAdapter(el: HTMLElement): Adapter {
@@ -226,6 +232,8 @@ export default function MapTab({ vehicle, l100, fuelPrice, active, notify }: Pro
   const holderRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<Adapter | null>(null);
   const watchRef = useRef<number | null>(null);
+  const nativeWatchRef = useRef<string | null>(null);
+  const nativeForeWatchRef = useRef<string | null>(null);
   const tickRef = useRef<number | null>(null);
   const lastPosRef = useRef<Pt | null>(null);
   const routeRef = useRef<Pt[]>([]);
@@ -389,16 +397,24 @@ export default function MapTab({ vehicle, l100, fuelPrice, active, notify }: Pro
       navigator.geolocation.clearWatch(watchRef.current);
       watchRef.current = null;
     }
+    if (nativeForeWatchRef.current) {
+      void Geolocation.clearWatch({ id: nativeForeWatchRef.current });
+      nativeForeWatchRef.current = null;
+    }
+    if (nativeWatchRef.current) {
+      void BackgroundGeolocation.removeWatcher({ id: nativeWatchRef.current });
+      nativeWatchRef.current = null;
+    }
   }, []);
 
   const startReal = useCallback(() => {
-    if (!window.isSecureContext) {
+    if (!Capacitor.isNativePlatform() && !window.isSecureContext) {
       const msg = "تحديد GPS الدقيق يعمل فقط عبر HTTPS أو localhost.";
       setGeoMsg(msg);
       notify({ title: "اتصال غير آمن", msg, level: "danger" });
       return;
     }
-    if (!("geolocation" in navigator)) {
+    if (!Capacitor.isNativePlatform() && !("geolocation" in navigator)) {
       setGeoMsg("المتصفح لا يدعم تحديد الموقع GPS.");
       notify({ title: "GPS غير مدعوم", msg: "المتصفح الحالي لا يدعم تحديد الموقع.", level: "danger" });
       return;
@@ -409,6 +425,135 @@ export default function MapTab({ vehicle, l100, fuelPrice, active, notify }: Pro
     gpsAcceptedRef.current = false;
     adapterRef.current?.clearMarker();
     stopReal();
+
+    const acceptNativeFix = (
+      lat: number,
+      lng: number,
+      accuracy: number | null,
+      speedMps: number | null,
+      timestamp?: number,
+    ) => {
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      if (timestamp && Date.now() - timestamp > 10_000) {
+        setGeoMsg("تم تجاهل قراءة GPS قديمة.");
+        return;
+      }
+      setLocationAccuracy(accuracy);
+      if (accuracy !== null && accuracy > GPS_MAX_ACCURACY_METERS) {
+        setGeoMsg(
+          `إشارة GPS ضعيفة حاليًا (${Math.round(accuracy)} متر). ينتظر التطبيق دقة ${GPS_MAX_ACCURACY_METERS} متر أو أقل.`,
+        );
+        return;
+      }
+      setGeoMsg(null);
+      gpsAcceptedRef.current = true;
+      const p: Pt = [lat, lng];
+      if (!lastPosRef.current) routeRef.current = [p];
+      adapterRef.current?.setView(p[0], p[1], 18);
+      adapterRef.current?.setMarker(p[0], p[1]);
+      adapterRef.current?.setRoute(routeRef.current);
+      pushFix(p, speedMps !== null ? speedMps * 3.6 : null, accuracy ?? undefined);
+      setMode("real");
+    };
+
+    if (Capacitor.isNativePlatform()) {
+      void (async () => {
+        try {
+          const perm = await Geolocation.checkPermissions();
+          let locationPerm = perm.location;
+          if (locationPerm !== "granted") {
+            const requested = await Geolocation.requestPermissions({
+              permissions: ["location", "coarseLocation"],
+            });
+            locationPerm = requested.location;
+          }
+          if (locationPerm !== "granted") {
+            setPerm("denied");
+            setGeoMsg("الموقع الدقيق مغلق. فعّل إذن الموقع وإعداد الدقة العالية.");
+            notify({
+              title: "الموقع الدقيق مطلوب",
+              msg: "افتح إعدادات التطبيق، فعّل الموقع، واختر «دقيق».",
+              level: "danger",
+            });
+            return;
+          }
+
+          const notificationPerm = await LocalNotifications.checkPermissions();
+          if (notificationPerm.display !== "granted") {
+            await LocalNotifications.requestPermissions();
+          }
+
+          const first = await Geolocation.getCurrentPosition({
+            enableHighAccuracy: true,
+            timeout: 10_000,
+            maximumAge: 0,
+          });
+          acceptNativeFix(
+            first.coords.latitude,
+            first.coords.longitude,
+            first.coords.accuracy,
+            first.coords.speed,
+            first.timestamp,
+          );
+
+          nativeForeWatchRef.current = await Geolocation.watchPosition(
+            {
+              enableHighAccuracy: true,
+              timeout: 10_000,
+              maximumAge: 0,
+              minimumUpdateInterval: 1000,
+            },
+            (position, error) => {
+              if (error) {
+                setGeoMsg("تم فقد إشارة GPS مؤقتًا. ينتظر التطبيق قراءة دقيقة ولا يعيد الطلب تلقائيًا.");
+                return;
+              }
+              if (!position) return;
+              acceptNativeFix(
+                position.coords.latitude,
+                position.coords.longitude,
+                position.coords.accuracy,
+                position.coords.speed,
+                position.timestamp,
+              );
+            },
+          );
+
+          nativeWatchRef.current = await BackgroundGeolocation.addWatcher(
+            {
+              backgroundMessage: "inProfit يتتبع موقع رحلتك.",
+              backgroundTitle: "تتبع inProfit نشط",
+              requestPermissions: true,
+              stale: false,
+              distanceFilter: 5,
+            },
+            (position, error) => {
+              if (error) {
+                setGeoMsg("توقف التتبع الخلفي مؤقتًا حتى تتوفر إشارة GPS.");
+                return;
+              }
+              if (!position) return;
+              acceptNativeFix(
+                position.latitude,
+                position.longitude,
+                position.accuracy,
+                position.speed,
+                position.time ?? undefined,
+              );
+            },
+          );
+        } catch (error) {
+          setPerm("denied");
+          setGeoMsg("تعذر تشغيل GPS Native. تحقق من تفعيل الموقع الدقيق وخدمات الموقع.");
+          notify({
+            title: "تعذر تشغيل GPS",
+            msg: error instanceof Error ? error.message : "أعد تشغيل التتبع بعد تفعيل خدمات الموقع.",
+            level: "danger",
+          });
+        }
+      })();
+      return;
+    }
 
     navigator.geolocation.getCurrentPosition(
       (fix) => {
