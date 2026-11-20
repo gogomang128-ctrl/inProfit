@@ -1,8 +1,6 @@
-import { useState } from "react";
 import type { Vehicle } from "@/data/vehicles";
 import { getVehicle, vehicles } from "@/data/vehicles";
 import type { TripResult } from "@/lib/calc";
-import { beep } from "@/lib/audio";
 
 export interface TripState {
   tripKm: number;
@@ -20,12 +18,6 @@ interface Props {
   setTrip: (t: TripState) => void;
   onVehicleChange: (v: Vehicle) => void;
 }
-
-const PRESETS = [
-  { key: "win", label: "طلب مربح", dot: "#31C48D", trip: 7.5, pickup: 1.2, fare: 85 },
-  { key: "weak", label: "طلب متوسط", dot: "#F2A900", trip: 16, pickup: 3, fare: 55 },
-  { key: "loss", label: "طلب خسران", dot: "#F04438", trip: 20, pickup: 4, fare: 40 },
-];
 
 const VERDICT_STYLE: Record<TripResult["verdict"], { title: string; ring: string; text: string; bg: string }> = {
   win: {
@@ -49,7 +41,6 @@ const VERDICT_STYLE: Record<TripResult["verdict"], { title: string; ring: string
 };
 
 export default function TripTab({ vehicle, l100, fuelPrice, result, trip, setTrip, onVehicleChange }: Props) {
-  const [scan, setScan] = useState<"idle" | "scanning">("idle");
   const style = VERDICT_STYLE[result.verdict];
   const isMoto = vehicle.type === "motorcycle";
 
@@ -85,67 +76,8 @@ export default function TripTab({ vehicle, l100, fuelPrice, result, trip, setTri
     </label>
   );
 
-  const simulateRead = () => {
-    setScan("scanning");
-    beep("info");
-    window.setTimeout(() => {
-      const p = PRESETS[Math.floor(Math.random() * PRESETS.length)];
-      setTrip({ tripKm: p.trip, pickupKm: p.pickup, fare: p.fare, wearPercent: trip.wearPercent });
-      setScan("idle");
-      beep("info");
-    }, 1100);
-  };
-
   return (
     <div className="space-y-4">
-      {/* قراءة تلقائية من شاشة إندرايف */}
-      <section className="relative overflow-hidden rounded-2xl border border-[#1E2B26] bg-[#0D1412] p-3.5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-[13px] font-black text-white">
-              قراءة تلقائية من شاشة إندرايف
-            </h2>
-            <p className="mt-1 text-[11px] leading-relaxed text-[#8FA39B]">
-              على أندرويد يتم قراءة المسافة وسعر الرحلة تلقائيًا عبر خدمة إمكانية الوصول
-              (Accessibility Service) — هنا تُحاكى القراءة لتقييم الطلب فورًا.
-            </p>
-          </div>
-          <span className="shrink-0 rounded-md border border-[#F2A900]/35 bg-[#F2A900]/10 px-2 py-1 text-[9px] font-black text-[#F2A900]">
-            AUTO-READ
-          </span>
-        </div>
-
-        <button
-          onClick={simulateRead}
-          disabled={scan === "scanning"}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[#1E2B26] bg-[#070B0A] py-2.5 text-xs font-black text-white transition active:scale-[0.99] disabled:opacity-70"
-        >
-          {scan === "scanning" ? "جارٍ مسح الشاشة…" : "محاكاة قراءة طلب جديد"}
-        </button>
-
-        <div className="mt-2.5 grid grid-cols-3 gap-2">
-          {PRESETS.map((p) => (
-            <button
-              key={p.key}
-              onClick={() => {
-                setTrip({ ...trip, tripKm: p.trip, pickupKm: p.pickup, fare: p.fare });
-                beep("info");
-              }}
-              className="rounded-xl border px-2 py-2 text-[11px] font-black transition active:scale-95"
-              style={{ borderColor: `${p.dot}55`, color: p.dot, background: `${p.dot}12` }}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-        {scan === "scanning" && (
-          <div className="absolute inset-x-0 bottom-0 h-0.5 overflow-hidden bg-[#1E2B26]">
-            <div className="h-full w-1/3 animate-[scan_1s_linear_infinite] bg-[#F2A900]" />
-          </div>
-        )}
-      </section>
-
       {/* اختيار المركبة مربوط مباشرة بقاعدة بيانات المركبات والحسابات */}
       <section className="rounded-2xl border border-[#1E2B26] bg-[#0D1412] p-3.5">
         <div className="flex items-end gap-3">

@@ -209,47 +209,6 @@ function haversineKm(a: Pt, b: Pt): number {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-/** مسار محاكاة على شارع النيل بالقاهرة (للاختبار بدون GPS) */
-const SIM_PATH: Pt[] = [
-  [30.0585, 31.226],
-  [30.062, 31.2215],
-  [30.066, 31.2185],
-  [30.071, 31.216],
-  [30.076, 31.2145],
-  [30.081, 31.2135],
-  [30.086, 31.213],
-  [30.0915, 31.2135],
-  [30.0965, 31.2155],
-  [30.1015, 31.2185],
-  [30.106, 31.2225],
-  [30.1105, 31.227],
-  [30.115, 31.2325],
-  [30.1195, 31.2385],
-];
-const SIM_SPEEDS = [46, 54, 63, 71, 78, 86, 94, 97, 88, 76, 66, 58, 64, 72, 80, 91, 84, 69];
-
-const segmentLens: number[] = [];
-let pathTotal = 0;
-for (let i = 1; i < SIM_PATH.length; i++) {
-  const d = haversineKm(SIM_PATH[i - 1], SIM_PATH[i]);
-  segmentLens.push(d);
-  pathTotal += d;
-}
-
-function pointAt(km: number): Pt {
-  let remaining = ((km % pathTotal) + pathTotal) % pathTotal;
-  for (let i = 0; i < segmentLens.length; i++) {
-    if (remaining <= segmentLens[i]) {
-      const t = segmentLens[i] === 0 ? 0 : remaining / segmentLens[i];
-      const a = SIM_PATH[i];
-      const b = SIM_PATH[i + 1];
-      return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-    }
-    remaining -= segmentLens[i];
-  }
-  return SIM_PATH[0];
-}
-
 interface Props {
   vehicle: Vehicle;
   l100: number;
@@ -258,7 +217,7 @@ interface Props {
   notify: (a: { title: string; msg: string; level: "info" | "warn" | "danger" }) => void;
 }
 
-type Mode = "idle" | "real" | "sim";
+type Mode = "idle" | "real";
 const GPS_MAX_ACCURACY_METERS = 50;
 const GPS_TIMEOUT_MS = 10_000;
 
@@ -266,15 +225,12 @@ export default function MapTab({ vehicle, l100, fuelPrice, active, notify }: Pro
   const holderRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<Adapter | null>(null);
   const watchRef = useRef<number | null>(null);
-  const simRef = useRef<number | null>(null);
   const tickRef = useRef<number | null>(null);
   const lastPosRef = useRef<Pt | null>(null);
   const routeRef = useRef<Pt[]>([]);
   const distRef = useRef(0);
   const litersRef = useRef(0);
   const speedRef = useRef(0);
-  const simKmRef = useRef(0);
-  const simTickRef = useRef(0);
   const lastAlertRef = useRef(0);
   const tankWarnedRef = useRef(false);
   const startRef = useRef(0);
@@ -586,76 +542,27 @@ export default function MapTab({ vehicle, l100, fuelPrice, active, notify }: Pro
     );
   }, [notify, pushFix, stopReal]);
 
-  /* ───── محاكاة المسار ───── */
-  const stopSim = useCallback(() => {
-    if (simRef.current) {
-      window.clearInterval(simRef.current);
-      simRef.current = null;
-    }
-  }, []);
-
-  const startSim = useCallback(() => {
-    stopReal();
-    startRef.current = Date.now();
-    simKmRef.current = 0;
-    simTickRef.current = 0;
-    lastPosRef.current = null;
-    routeRef.current = [SIM_PATH[0]];
-    adapterRef.current?.setView(SIM_PATH[0][0], SIM_PATH[0][1], 15);
-    adapterRef.current?.setMarker(SIM_PATH[0][0], SIM_PATH[0][1]);
-    adapterRef.current?.setRoute(routeRef.current);
-    setMode("sim");
-    notify({
-      title: "وضع المحاكاة الحية",
-      msg: "مسار تجريبي على شارع النيل لتجربة القياسات قبل الخروج بالطلب الحقيقي.",
-      level: "info",
-    });
-    beep("info");
-
-    simRef.current = window.setInterval(() => {
-      const i = simTickRef.current++;
-      const spd = SIM_SPEEDS[i % SIM_SPEEDS.length];
-      const stepKm = spd / 3600;
-      simKmRef.current += stepKm;
-      const pos = pointAt(simKmRef.current);
-      const last = lastPosRef.current;
-      const delta = last ? haversineKm(last, pos) : 0;
-      lastPosRef.current = pos;
-      speedRef.current = spd;
-      distRef.current += delta;
-      litersRef.current += ((stepKm * l100Ref.current) / 100) * speedFactor(spd);
-      routeRef.current.push(pos);
-      if (routeRef.current.length > 900) routeRef.current.shift();
-      adapterRef.current?.setMarker(pos[0], pos[1]);
-      adapterRef.current?.setRoute(routeRef.current);
-      if (i % 3 === 0) adapterRef.current?.setView(pos[0], pos[1], 16);
-    }, 1000);
-  }, [notify, pushFix, stopReal, stopSim]);
-
   const stopAll = useCallback(() => {
     stopReal();
-    stopSim();
     setMode("idle");
     setLocationAccuracy(null);
     gpsAcceptedRef.current = false;
     adapterRef.current?.clearMarker();
     speedRef.current = 0;
     setSpeed(0);
-  }, [stopReal, stopSim]);
+  }, [stopReal]);
 
   useEffect(
     () => () => {
       stopReal();
-      stopSim();
     },
-    [stopReal, stopSim],
+    [stopReal],
   );
 
   const resetTrip = () => {
     distRef.current = 0;
     litersRef.current = 0;
     speedRef.current = 0;
-    simKmRef.current = 0;
     lastPosRef.current = null;
     routeRef.current = [];
     startRef.current = Date.now();
@@ -732,7 +639,7 @@ export default function MapTab({ vehicle, l100, fuelPrice, active, notify }: Pro
         <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2.5">
           <span className="rounded-lg border border-[#1E2B26] bg-[#070B0A]/90 px-2 py-1 text-[10px] font-black text-[#8FA39B] backdrop-blur">
             {engineName === "google" ? "Google Maps" : "خريطة تفاعلية"} •{" "}
-            {mode === "real" ? "GPS حقيقي" : mode === "sim" ? "محاكاة" : "في الانتظار"}
+            {mode === "real" ? "GPS حقيقي" : "في الانتظار"}
             {mode === "real" && locationAccuracy !== null
               ? ` • دقة ${Math.round(locationAccuracy)} م`
               : ""}
@@ -841,7 +748,7 @@ export default function MapTab({ vehicle, l100, fuelPrice, active, notify }: Pro
       )}
 
       {/* التحكم */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <button
           onClick={() => (mode === "real" ? stopAll() : startReal())}
           className={`rounded-xl py-2.5 text-[11px] font-black transition active:scale-95 ${
@@ -851,14 +758,6 @@ export default function MapTab({ vehicle, l100, fuelPrice, active, notify }: Pro
           }`}
         >
           {mode === "real" ? "إيقاف التتبع" : "تتبع GPS حقيقي"}
-        </button>
-        <button
-          onClick={() => (mode === "sim" ? stopAll() : startSim())}
-          className={`rounded-xl py-2.5 text-[11px] font-black transition active:scale-95 ${
-            mode === "sim" ? "bg-[#F04438] text-white" : "bg-[#1B2A4A] text-[#9FC0FF]"
-          }`}
-        >
-          {mode === "sim" ? "إيقاف المحاكاة" : "محاكاة حية"}
         </button>
         <button
           onClick={resetTrip}

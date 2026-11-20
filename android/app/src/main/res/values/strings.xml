@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">inProfit</string>
+    <string name="title_activity_main">inProfit</string>
+    <string name="package_name">com.inprofit.app</string>
+    <string name="custom_url_scheme">com.inprofit.app</string>
+</resources>

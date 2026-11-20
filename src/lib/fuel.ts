@@ -81,7 +81,7 @@ export function useFuelPrices() {
     setStore(next);
   };
 
-  /** إعادة التحقق من التسعيرة الرسمية (محاكاة استجابة المصدر) */
+  /** إعادة التحقق من التسعيرة الرسمية المحلية */
   const revalidate = () => {
     setLastCheck(Date.now());
     setStore((prev) => {
